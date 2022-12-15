@@ -313,7 +313,6 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/NotFound'
-
     patch:
       summary: Update a connection
       x-openapi-router-controller: airflow.api_connexion.endpoints.connection_endpoint
@@ -472,6 +471,28 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /dags/:
+    post:
+      summary: Upsert a DAG
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint
+      operationId: post_dag
+      tags: [DAG]
+      # TODO: request format needs to be defined
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAG'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+
   /dags/{dag_id}:
     parameters:
       - $ref: '#/components/parameters/DAGID'
@@ -498,7 +519,6 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/NotFound'
-
     patch:
       summary: Update a DAG
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_endpoint

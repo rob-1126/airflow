@@ -180,6 +180,10 @@ class DagBag(LoggingMixin):
         """
         # Avoid circular import
         from airflow.models.dag import DagModel
+        # short-circuit dag caching mechanism for proof-of-concept
+        self.log.debug("Dag caching disabled in proof-of-concept. Skipping dag caching in get_dag.")
+        self._add_dag_from_db(dag_id=dag_id, session=session)
+        return self.dags.get(dag_id)
 
         if self.read_dags_from_db:
             # Import here so that serialized dag is only imported when serialization is enabled
@@ -216,7 +220,6 @@ class DagBag(LoggingMixin):
                     self._add_dag_from_db(dag_id=dag_id, session=session)
 
             return self.dags.get(dag_id)
-
         # If asking for a known subdag, we want to refresh the parent
         dag = None
         root_dag_id = dag_id
@@ -610,6 +613,9 @@ class DagBag(LoggingMixin):
 
     @provide_session
     def sync_to_db(self, processor_subdir: str | None = None, session: Session = None):
+        # short-circuit syncing of local files to the database, dags must be added via api
+        self.log.debug("Saving of local files to the databsae is disabled in proof-of-concept. Skipping dag sync in sync_to_db")
+        return
         """Save attributes about list of DAG to the DB."""
         # To avoid circular import - airflow.models.dagbag -> airflow.models.dag -> airflow.models.dagbag
         from airflow.models.dag import DAG

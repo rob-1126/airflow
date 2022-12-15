@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+
 from http import HTTPStatus
 from typing import Collection
 
@@ -38,6 +40,7 @@ from airflow.api_connexion.schemas.dag_schema import (
 from airflow.api_connexion.types import APIResponse, UpdateMask
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.dag import DagModel, DagTag
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -118,6 +121,42 @@ def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session =
         raise NotFound(f"Dag with id: '{dag_id}' not found")
     dag.is_paused = patch_body["is_paused"]
     session.flush()
+    return dag_schema.dump(dag)
+
+
+@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)])
+@provide_session
+def post_dag(*, session: Session = NEW_SESSION) -> APIResponse:
+    """Upsert a DAG."""
+    body = request.json
+    dag_body = body["dag"]
+    dag_id = dag_body["_dag_id"]
+    fileloc = dag_body["fileloc"]
+
+    owners = ""
+
+    dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
+    if not dag:
+        dag = DagModel()
+    dag.dag_id = dag_id
+    dag.owners = owners
+    dag.dag_id = dag_id
+    dag.is_active = True
+    dag.is_paused = False
+
+    serialized_dag = (
+        session.query(SerializedDagModel).filter(SerializedDagModel.dag_id == dag_id).one_or_none()
+    )
+    dag_data_json = json.dumps(dag_body).encode("utf-8")
+    if not serialized_dag:
+        serialized_dag = SerializedDagModel(dag_id, fileloc, dag_data_json)
+    serialized_dag._data = body
+    serialized_dag._data_compressed = None
+    serialized_dag.__data_cache = dag_data_json
+
+    session.add(dag)
+    session.add(serialized_dag)
+    session.commit()
     return dag_schema.dump(dag)
 
 

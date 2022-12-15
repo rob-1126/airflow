@@ -92,28 +92,22 @@ class SerializedDagModel(Base):
 
     load_op_links = True
 
-    def __init__(self, dag: DAG, processor_subdir: str | None = None):
-        self.dag_id = dag.dag_id
-        self.fileloc = dag.fileloc
+    def __init__(self, dag_id, fileloc, dag_data_json, processor_subdir: str | None = None):
+        self.dag_id = dag_id
+        self.fileloc = fileloc
         self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
         self.last_updated = timezone.utcnow()
         self.processor_subdir = processor_subdir
-
-        dag_data = SerializedDAG.to_dict(dag)
-        dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
-
         self.dag_hash = hashlib.md5(dag_data_json).hexdigest()
-
         if COMPRESS_SERIALIZED_DAGS:
             self._data = None
             self._data_compressed = zlib.compress(dag_data_json)
         else:
-            self._data = dag_data
+            self._data = dag_data_json
             self._data_compressed = None
-
         # serve as cache so no need to decompress and load, when accessing data field
         # when COMPRESS_SERIALIZED_DAGS is True
-        self.__data_cache = dag_data
+        self.__data_cache = dag_data_json
 
     def __repr__(self):
         return f"<SerializedDag: {self.dag_id}>"
@@ -154,9 +148,37 @@ class SerializedDagModel(Base):
                 return False
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
-        new_serialized_dag = cls(dag, processor_subdir)
+        dag_data = SerializedDAG.to_dict(dag)
+        dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
+        cls.write_raw_dag(dag.dag_id, dag.fileloc, dag_data_json, processor_subdir)
+
+    @classmethod
+    @provide_session
+    def write_raw_dag(
+        cls,
+        dag_id,
+        fileloc,
+        dag_data_json,
+        processor_subdir: str | None = None,
+        session: Session = None,
+    ) -> bool:
+        """Serializes a DAG and writes it into database.
+        If the record already exists, it checks if the Serialized DAG changed or not. If it is
+        changed, it updates the record, ignores otherwise.
+
+        :param dag_id: the dag_id of the dag to be written
+        :param fileloc: the fileloc of the file to be written
+        :param dag_data_json: the json dag_data_json of the file to be written
+        :param session: ORM Session
+
+        :returns: Boolean indicating if the DAG was written to the DB
+        """
+        log.debug(f"Using dag_data_json of {dag_data_json}")
+
+        log.debug("Checking if DAG (%s) changed", dag_id)
+        new_serialized_dag = cls(dag_id, fileloc, dag_data_json, processor_subdir)
         serialized_dag_db = (
-            session.query(cls.dag_hash, cls.processor_subdir).filter(cls.dag_id == dag.dag_id).first()
+            session.query(cls.dag_hash, cls.processor_subdir).filter(cls.dag_id == dag_id).first()
         )
 
         if (
@@ -164,12 +186,12 @@ class SerializedDagModel(Base):
             and serialized_dag_db.dag_hash == new_serialized_dag.dag_hash
             and serialized_dag_db.processor_subdir == new_serialized_dag.processor_subdir
         ):
-            log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
+            log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag_id)
             return False
 
-        log.debug("Writing Serialized DAG: %s to the DB", dag.dag_id)
+        log.debug("Writing Serialized DAG: %s to the DB", dag_id)
         session.merge(new_serialized_dag)
-        log.debug("DAG: %s written to the DB", dag.dag_id)
+        log.debug("DAG: %s written to the DB", dag_id)
         return True
 
     @classmethod
@@ -239,6 +261,9 @@ class SerializedDagModel(Base):
         :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
         """
+        # short-circuit dag removal
+        log.debug("Dag removal disabled in proof-of-concept. Skipping dag removal in remove_deleted_dags")
+        return
         alive_fileloc_hashes = [DagCode.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
 
         log.debug(
