@@ -345,7 +345,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         self._parent_signal_conn.close()
 
 
-class DagFileProcessorManager(LoggingMixin):
+class BaseDagFileProcessorManager(LoggingMixin):
     """
     Manage processes responsible for parsing DAGs.
 
@@ -1220,3 +1220,10 @@ class DagFileProcessorManager(LoggingMixin):
     @property
     def file_paths(self):
         return self._file_paths
+
+
+DagFileProcessorManager = conf.getimport(
+    section="core",
+    key="dag_file_processor_manager_class",
+    fallback="airflow.dag_processing.manager.BaseDagFileProcessorManager",
+)

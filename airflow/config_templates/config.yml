@@ -173,6 +173,12 @@ core:
       type: integer
       example: ~
       default: "2"
+    dag_file_processor_manager_class:
+      description: Class to use as the dag file processor manager.
+      version_added: 2.6.0
+      type: string
+      default: ~
+      example: 'airflow.dag_processing.manager.BaseDagFileProcessorManager'
     dag_file_processor_timeout:
       description: |
         How long before timing out a DagFileProcessor, which processes a dag file
