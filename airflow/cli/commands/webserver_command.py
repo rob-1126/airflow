@@ -28,6 +28,7 @@ import time
 from contextlib import suppress
 from time import sleep
 from typing import NoReturn
+from threading import Thread
 
 import daemon
 import psutil
@@ -41,6 +42,7 @@ from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import check_if_pidfile_process_is_running
+from airflow.utils.state_cache import resolve_state_cache_backend
 
 log = logging.getLogger(__name__)
 
@@ -350,9 +352,19 @@ def webserver(args):
 
     from airflow.www.app import create_app
 
+    StateBackend = resolve_state_cache_backend()
+    # todo add option to pass state backend config args from airflow config
+    state_backend = StateBackend()
+    state_server_thread = Thread(target = state_backend.start, args=(), daemon=True)
+    state_server_thread.start()
+    state_backend_client_config = state_backend.make_client_config()    
+    # serialized version passed into gunicorn workers so it can connect back to the state store socket post-fork
+    gunicorn_env = os.environ.copy()
+    gunicorn_env["WEBSERVER_STATE_BACKEND_CONFIG"]=state_backend.get_client_config_as_string()
+
     if args.debug:
         print(f"Starting the web server on port {args.port} and host {args.hostname}.")
-        app = create_app(testing=conf.getboolean("core", "unit_test_mode"))
+        app = create_app(testing=conf.getboolean("core", "unit_test_mode"), state_backend_client_config=state_backend_client_config)
         app.run(
             debug=True,
             use_reloader=not app.config["TESTING"],
@@ -367,6 +379,7 @@ def webserver(args):
         )
 
         # Check if webserver is already running if not, remove old pidfile
+        print("Checking pid file ",pid_file)
         check_if_pidfile_process_is_running(pid_file=pid_file, process_name="webserver")
 
         print(
@@ -456,7 +469,7 @@ def webserver(args):
         if args.daemon:
             # This makes possible errors get reported before daemonization
             os.environ["SKIP_DAGS_PARSING"] = "True"
-            app = create_app(None)
+            app = create_app(None, state_backend_client_config=state_backend_client_config)
             os.environ.pop("SKIP_DAGS_PARSING")
 
             handle = setup_logging(log_file)
@@ -474,7 +487,7 @@ def webserver(args):
                     umask=int(settings.DAEMON_UMASK, 8),
                 )
                 with ctx:
-                    subprocess.Popen(run_args, close_fds=True)
+                    subprocess.Popen(run_args, close_fds=True, env=gunicorn_env)
 
                     # Reading pid of gunicorn master as it will be different that
                     # the one of process spawned above.
@@ -489,5 +502,5 @@ def webserver(args):
                     monitor_gunicorn(gunicorn_master_proc.pid)
 
         else:
-            with subprocess.Popen(run_args, close_fds=True) as gunicorn_master_proc:
+            with subprocess.Popen(run_args, close_fds=True, env=gunicorn_env) as gunicorn_master_proc:
                 monitor_gunicorn(gunicorn_master_proc.pid)

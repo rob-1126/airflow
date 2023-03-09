@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import itertools
 import logging
 import multiprocessing
@@ -25,6 +26,7 @@ import signal
 import sys
 import time
 import warnings
+import json
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -72,6 +74,7 @@ from airflow.utils.sqlalchemy import (
 )
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
+from airflow.utils.eventbus import EventBus
 
 if TYPE_CHECKING:
     from types import FrameType
@@ -717,7 +720,56 @@ class SchedulerJob(BaseJob):
                     ti.handle_failure(error=msg % (ti, state, ti.state, info), session=session)
 
         return len(event_buffer)
-
+    def _process_event_bus_events(self):
+        def invalidate_dag_cache(data):
+          self.log.exception(f"Scheduler job event handler invalidating dag cache in response to event bus message.")
+        self.log.exception("Scheduler job preparing to check for event bus message")
+        scheduler_message_bus_handlers = {}
+        scheduler_message_bus_handlers["invalidate_dag_cache"] = invalidate_dag_cache
+        async def get_messages(bus, output):
+            self.log.exception("Scheduler job actually checking for event bus message")
+            channel = "main"
+            message = await bus.get_message(channel)
+            # NAUGHTY PLACEHOLDER BLOCK UNTIL THERE IS A MESSAGE
+            while message:
+                message = await bus.get_message(channel)
+                self.log.exception(f"Scheduler job got event bus message {message}")
+        loop = asyncio.get_event_loop()
+        messages = []
+        bus_task = loop.create_task(get_messages(self.bus, messages))
+        loop.run_until_complete(bus_task)
+        # messages now contains the latest bout of messages so lets handle them one by one
+        self.log.exception(f"Scheduler job cumulatively got raw event bus messages {messages}")
+        message_bus_handlers = scheduler_message_bus_handlers
+        for message in messages:
+            raw_data = message["data"]
+            # ensure json, as all main channel messages must be
+            try:
+              data = json.loads(raw_data)
+            except TypeError:
+               truncate_size = 100
+               character_count = len(raw_data)
+               if character_count > truncate_size:
+                 excerpt = raw_data[0:truncate_size]
+                 self.log.exception("Scheduler event bus received raw message that was not in json format. {potentially_truncated_desc}. Excerpt of first {truncate_size} of {character_count} characters follows: {excerpt}")
+               else:
+                 self.log.exception("Scheduler event bus received raw message that was not in json format. Entire raw message follows: {message}")
+               # so just continue to the next message if thats the case
+               continue
+            # all main channel ops must have an op attribute set
+            if not data["op"]:
+               self.log.exception("Scheduler event bus received message without op attribute set.")
+               # so just continue to the next message if thats the case
+               continue
+            op_name = data["op"]
+            if op_name not in message_bus_handlers:
+               self.log.exception(f"Scheduler event bus received the following unhandled op name: {op_name}")
+               # so just continue to the next message if thats the case
+               continue
+            # now that we know we have a json message and an event handler handle it
+            op_handler = message_bus_handlers[op_name]
+            op_handler(data)
+        return messages
     def _execute(self) -> None:
         from airflow.dag_processing.manager import DagFileProcessorAgent
 
@@ -758,7 +810,17 @@ class SchedulerJob(BaseJob):
 
                 self.log.debug("Using DatabaseCallbackSink as callback sink.")
                 self.executor.callback_sink = DatabaseCallbackSink()
-
+            
+            self.log.debug("Preparing to establish scheduler connection to event bus.")
+            async def setup_event_bus(bus):
+                self.log.debug("Reaching out to establish a scheduler connection to event bus.")
+                await bus.connect()
+                await bus.subscribe("main")
+                self.log.debug("Established scheduler connection to event bus.")
+            self.bus = EventBus()
+            loop = asyncio.get_event_loop()
+            bus_task = loop.create_task(setup_event_bus(self.bus))
+            loop.run_until_complete(bus_task)
             self.executor.start()
 
             self.register_signals()
@@ -887,7 +949,7 @@ class SchedulerJob(BaseJob):
 
         for loop_count in itertools.count(start=1):
             with Stats.timer("scheduler.scheduler_loop_duration") as timer:
-
+                self._process_event_bus_events()
                 if self.using_sqlite and self.processor_agent:
                     self.processor_agent.run_single_parsing_loop()
                     # For the sqlite case w/ 1 thread, wait until the processor

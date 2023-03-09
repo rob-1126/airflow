@@ -349,6 +349,20 @@ core:
       type: string
       example: "path.to.CustomXCom"
       default: "airflow.models.xcom.BaseXCom"
+    event_bus_backend:
+      description: |
+        Path to custom EventBusBackend class that will be used to that will be used to communicate between cluster members
+      version_added: 2.9.0
+      type: string
+      example: "path.to.CustomEventBusBackend"
+      default: "airflow.utils.eventbus.BaseEventBusBackend"
+    state_cache_backend:
+      description: |
+        Path to custom StateBackend class that will be used to fetch cached information about shared airflow state
+      version_added: 2.9.0
+      type: string
+      example: "airflow.utils.state_backend.BaseStateBackend"
+      default: "airflow.utils.state_backend.BaseStateBackend"
     lazy_load_plugins:
       description: |
         By default Airflow plugins are lazily-loaded (only loaded when required). Set it to ``False``,

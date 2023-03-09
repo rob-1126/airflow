@@ -55,6 +55,9 @@ from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import provide_session
 from airflow.utils.timeout import timeout
 from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.utils.state_cache import resolve_state_cache_backend
+StateCacheBackend = resolve_state_cache_backend()
+state_cache_backend = StateCacheBackend()
 
 if TYPE_CHECKING:
     import pathlib
@@ -69,6 +72,7 @@ class FileLoadStat(NamedTuple):
     task_num: int
     dags: str
 
+global_current_dagbag_version = None
 
 class DagBag(LoggingMixin):
     """
@@ -148,6 +152,14 @@ class DagBag(LoggingMixin):
         # This flag is set to False in Scheduler so that Extra Operator links are not loaded
         self.load_op_links = load_op_links
 
+    def invalidate_cache(self):
+        # TODO probably need to aquire a Lock
+        # probably should be on a per-dag basis
+        #self.dags_last_fetched = {}
+        #pid = os.getpid()
+        #self.log.warning(f"Gross cache invalidation proof-of-concept only. PID {pid}")
+        pass
+
     def size(self) -> int:
         """:return: the amount of dags contained in this dagbag"""
         return len(self.dags)
@@ -178,8 +190,15 @@ class DagBag(LoggingMixin):
 
         :param dag_id: DAG ID
         """
+
         # Avoid circular import
         from airflow.models.dag import DagModel
+
+        pid = os.getpid()
+
+        state_cache_client = state_cache_backend.get_state_cache_client()
+        cache_says_last_updated = state_cache_client.get_dag_last_updated(dag_id)
+        print("GOT BACK RAW CACHE RESPONSE", cache_says_last_updated, type(cache_says_last_updated))
 
         if self.read_dags_from_db:
             # Import here so that serialized dag is only imported when serialization is enabled
@@ -187,6 +206,7 @@ class DagBag(LoggingMixin):
 
             if dag_id not in self.dags:
                 # Load from DB if not (yet) in the bag
+                self.log.warning(f"READING {dag_id} from the database")
                 self._add_dag_from_db(dag_id=dag_id, session=session)
                 return self.dags.get(dag_id)
 
@@ -196,11 +216,19 @@ class DagBag(LoggingMixin):
             # 3. if (2) is yes, fetch the Serialized DAG.
             # 4. if (2) returns None (i.e. Serialized DAG is deleted), remove dag from dagbag
             # if it exists and return None.
+            self.log.warning(f"Serialized DAGs {self.dags_last_fetched}")
+
+            self.log.warning(f"Serialized DAG {dag_id} being requested on {pid}")
+
             min_serialized_dag_fetch_secs = timedelta(seconds=settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL)
+            print("COMPARING",cache_says_last_updated,self.dags_last_fetched[dag_id])
             if (
                 dag_id in self.dags_last_fetched
-                and timezone.utcnow() > self.dags_last_fetched[dag_id] + min_serialized_dag_fetch_secs
+                and ((cache_says_last_updated is not None and cache_says_last_updated > self.dags_last_fetched[dag_id]) or (timezone.utcnow() > self.dags_last_fetched[dag_id] + min_serialized_dag_fetch_secs))
             ):
+                if (cache_says_last_updated is not None and cache_says_last_updated > self.dags_last_fetched[dag_id]):
+                    self.log.warning(f"WE ARE HERE BECAUSE THE CACHE SAID OUR COPY IS OLD {cache_says_last_updated} was newer than {self.dags_last_fetched[dag_id]}")
+                self.log.warning(f"Serialized DAG {dag_id} PRESENT {pid}")
                 sd_last_updated_datetime = SerializedDagModel.get_last_updated_datetime(
                     dag_id=dag_id,
                     session=session,
@@ -213,7 +241,10 @@ class DagBag(LoggingMixin):
                     return None
 
                 if sd_last_updated_datetime > self.dags_last_fetched[dag_id]:
+                    self.log.warning(f"Serialized DAG {dag_id} being fetched on {pid}")
                     self._add_dag_from_db(dag_id=dag_id, session=session)
+                else:
+                    self.dags_last_fetched[dag_id] = timezone.utcnow()
 
             return self.dags.get(dag_id)
 

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from asyncio import get_event_loop
 from http import HTTPStatus
 from typing import Collection
 
@@ -41,7 +42,8 @@ from airflow.models.dag import DagModel, DagTag
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
-
+from airflow.utils.eventbus import EventBus
+from json import dumps
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 @provide_session
@@ -123,6 +125,24 @@ def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session =
     dag.is_paused = patch_body["is_paused"]
     session.flush()
     return dag_schema.dump(dag)
+
+@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)])
+@provide_session
+def example_invalidate_dagbag_cache(*, session: Session = NEW_SESSION) -> APIResponse:
+    """ TODO internal demonstration, not for real use do not merge to main
+        shoe-horn an async method into a sync loop  and doesnt reuse sockets
+        dont bother to reuse client for now but should be on the little-t todo
+    """
+    async def send_oneoff(chan, msg):
+      bus = EventBus()
+      await bus.connect()
+      await bus.subscribe(chan)
+      await bus.send(chan, msg)
+    loop = get_event_loop()
+    message_data = {"op": "invalidate_dag_cache"}
+    raw_message = dumps(message_data)
+    loop.run_until_complete(send_oneoff("secondary", raw_message))
+    return "sent to message bus"
 
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)])
