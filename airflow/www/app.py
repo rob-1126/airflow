@@ -17,12 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import queue
 import warnings
 from datetime import timedelta
+from os import environ, getpid
 from tempfile import gettempdir
-from os import getpid, environ
 
-from flask import Flask, g
+from flask import Flask
 from flask_appbuilder import SQLA
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
@@ -57,15 +58,11 @@ from airflow.www.extensions.init_views import (
     init_plugins,
 )
 from airflow.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
-import queue
-import threading
-
-
-
 
 __message_queue = queue.Queue()
 
 from airflow.utils.state_cache import resolve_state_cache_backend
+
 StateBackend = resolve_state_cache_backend()
 state_backend = StateBackend()
 state_backend_client = None
@@ -75,6 +72,7 @@ app: Flask | None = None
 # Initializes at the module level, so plugins can access it.
 # See: /docs/plugins.rst
 csrf = CSRFProtect()
+
 
 def sync_appbuilder_roles(flask_app):
     """Sync appbuilder roles to DB"""
@@ -86,51 +84,18 @@ def sync_appbuilder_roles(flask_app):
         flask_app.appbuilder.sm.sync_roles()
 
 
-def create_app(config=None, testing=False, state_backend_client_config = None):
+def create_app(config=None, testing=False, state_backend_client_config=None):
     """Create a new instance of Airflow WWW app"""
     flask_app = Flask(__name__)
     print("SET", state_backend_client_config)
     flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
-    pid = getpid()
+    getpid()
     flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=settings.get_session_lifetime_config())
     flask_app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
     flask_app.config["APP_NAME"] = conf.get(section="webserver", key="instance_name", fallback="Airflow")
     flask_app.config["TESTING"] = testing
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
-    #def message_bus_event_reader():
-      # lazy import parallelize the load of asyncio
-      #import asyncio
-      # lazy import parallelize the load of eventbus
-      #from airflow.utils.eventbus import EventBus
-      #bus = EventBus()
-      #async def setup_connection():
-      #  print(f"PID ESTABLISHING EVENT BUS CONNECTION")
-      #  await bus.connect()
-      #  print(f"PID {pid} CONNECTED TO BUS")
-      #  await bus.subscribe("secondary")
-      #  print(f"PID {pid} SUBSCRIBED TO MAIN")
-      #async def inner_fun():
-      #     print(f"PID {pid} AWAITING A MESSAGE")
-      #     message = await bus.get_message("secondary")
-      #     print(f"PID {pid} SENDING message from event bus to queue: {message}")
-      #     __message_queue.put(message)
-      #     print(f"SQS SENDER PID {pid} DONE LISTENING FOR MESSAGES, QUE WAS", __message_queue)
-      #print(f"PID {pid} ABOUT TO ESTABLISH EVENT LOOP IN THREAD")
-      #loop = asyncio.new_event_loop()
-      #asyncio.set_event_loop(loop)
-      #loop.run_until_complete(setup_connection())
-
-    @flask_app.before_request
-    def read_event_bus_messages_before_each_request():
-        global state_backend_client
-        if not state_backend_client:
-            global app
-            state_backend_client_config = app.state_backend_client_config
-            print("ZAR intializing client with state backend client config")
-            state_backend_client = state_backend.init_cache_client(state_backend_client_config)
-        print("ZAR RUNNING BEFORE_REQUEST")
-        #state_backend_client.run_sync(dag_bag=app.dag_bag)
 
     url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
     if url.drivername == "sqlite" and url.database and not url.database.startswith("/"):
@@ -180,8 +145,6 @@ def create_app(config=None, testing=False, state_backend_client_config = None):
 
     init_robots(flask_app)
 
-
-
     cache_config = {"CACHE_TYPE": "flask_caching.backends.filesystem", "CACHE_DIR": gettempdir()}
     Cache(app=flask_app, config=cache_config)
 
@@ -192,7 +155,7 @@ def create_app(config=None, testing=False, state_backend_client_config = None):
 
     import_all_models()
 
-    #threading.Thread(target=message_bus_event_reader, daemon=True).start()
+    # threading.Thread(target=message_bus_event_reader, daemon=True).start()
     with flask_app.app_context():
         init_appbuilder(flask_app)
 
@@ -217,7 +180,6 @@ def create_app(config=None, testing=False, state_backend_client_config = None):
 
 def cached_app(config=None, testing=False):
     """Return cached instance of Airflow WWW app"""
-
     global app
     # this env var set in app
     if not app:
@@ -226,7 +188,9 @@ def cached_app(config=None, testing=False):
         raw_config_string = environ.get("WEBSERVER_STATE_BACKEND_CONFIG")
         state_backend_client_config = state_backend.make_client_config_from_string(raw_config_string)
         # create the app
-        app = create_app(config=config, testing=testing, state_backend_client_config=state_backend_client_config)
+        app = create_app(
+            config=config, testing=testing, state_backend_client_config=state_backend_client_config
+        )
     return app
 
 
@@ -234,4 +198,3 @@ def purge_cached_app():
     """Removes the cached version of the app in global state."""
     global app
     app = None
-
