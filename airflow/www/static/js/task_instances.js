@@ -68,7 +68,11 @@ function generateTooltipDateTimes(startTime, endTime, dagTimezone) {
 export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
   let tt = '';
   if (ti.state !== undefined) {
-    tt += `<strong>Status:</strong> ${escapeHtml(ti.state)}<br><br>`;
+    tt += `<strong>Status:</strong> ${escapeHtml(ti.state)}`;
+    if(ti.fail_reason) {
+      tt += ` - ${escapeHtml(ti.fail_reason)}`;
+    }
+    tt += '<br><br>';
   }
   if (ti.mapped_states) {
     const numMap = finalStatesMap();

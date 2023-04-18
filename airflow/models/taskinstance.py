@@ -1818,6 +1818,9 @@ class TaskInstance(Base, LoggingMixin):
 
         self.end_date = timezone.utcnow()
         self.set_duration()
+        # we should either require these Exceptions carry a reason
+        # or add an explicit reason argument to handle_failure
+        self.reason = "living_best_life"
         Stats.incr(f"operator_failures_{self.operator}")
         Stats.incr(
             "ti_failures", tags={"dag_id": self.dag_id, "run_id": self.run_id, "task_id": self.task_id}

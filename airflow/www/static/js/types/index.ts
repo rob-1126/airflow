@@ -33,6 +33,9 @@ type TaskState = RunState
 | 'deferred'
 | null;
 
+type TaskStateReason = 'living_best_life'
+| null;
+
 interface Dag {
   id: string,
   rootDagId: string,
@@ -65,6 +68,7 @@ interface TaskInstance {
   startDate: string | null;
   endDate: string | null;
   state: TaskState | null;
+  stateReason: TaskStateReason | null;
   mappedStates?: {
     [key: string]: number;
   },

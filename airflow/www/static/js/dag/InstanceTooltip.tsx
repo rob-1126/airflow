@@ -33,7 +33,7 @@ interface Props {
 const InstanceTooltip = ({
   group,
   instance: {
-    startDate, endDate, state, runId, mappedStates, note,
+    startDate, endDate, state, stateReason, runId, mappedStates, note,
   },
 }: Props) => {
   if (!group) return null;
@@ -94,6 +94,7 @@ const InstanceTooltip = ({
         Status:
         {' '}
         {state || 'no status'}
+        {stateReason ? ` - ${stateReason}` : ''}
       </Text>
       {(isGroup || isMapped) && summary}
       {startDate && (

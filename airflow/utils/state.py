@@ -54,6 +54,27 @@ class TaskInstanceState(str, Enum):
         return self.value
 
 
+
+class TaskInstanceStateReason(str, Enum):
+    """
+    Enum that represents all possible task instance reason states that a Task Instance can be in.
+
+    Note that None is also allowed, so always use this in a type hint with Optional.
+    """
+
+    # The scheduler sets a TaskInstance reason_state to None when it's created but not
+    # yet run, but we don't list it here since TaskInstance is a string enum.
+    # Use None instead if need this state.
+
+    # Set by the scheduler
+    BEST_LIFE = "living_best_life"  # Dummy status while we are testing this thing
+
+    # Set by the task instance itself
+    WORST_LIFE = "its_bad_man" # Dummy status
+
+    def __str__(self) -> str:
+        return self.value
+
 class DagRunState(str, Enum):
     """
     Enum that represents all possible states that a DagRun can be in.
@@ -98,6 +119,7 @@ class State:
     DEFERRED = TaskInstanceState.DEFERRED
 
     task_states: tuple[TaskInstanceState | None, ...] = (None,) + tuple(TaskInstanceState)
+    task_state_reasons: tuple[TaskInstanceStateReason | None, ...] = (None,) + tuple(TaskInstanceStateReason)
 
     dag_states: tuple[DagRunState, ...] = (
         DagRunState.QUEUED,

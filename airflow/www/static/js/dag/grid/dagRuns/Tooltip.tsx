@@ -37,7 +37,7 @@ const DagRunTooltip = ({ dagRun }: Props) => {
   return (
     <Box py="2px">
       <Text>
-        Status:
+        Status: zarg
         {' '}
         {dagRun.state || 'no status'}
       </Text>

@@ -43,7 +43,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_schema,
 )
 from airflow.api_connexion.types import APIResponse
-from airflow.models import SlaMiss
+from airflow.models import SlaMiss, TaskFail
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.operator import needs_expansion
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
@@ -84,6 +84,14 @@ def get_task_instance(
             ),
         )
         .add_entity(SlaMiss)
+        .outerjoin(
+            TaskFail,
+            and_(
+                TaskFail.dag_id == TI.dag_id,
+                TaskFail.task_id == TI.task_id,
+                TaskFail.run_id == TI.run_id,
+            ),
+        )
         .options(joinedload(TI.rendered_task_instance_fields))
     )
 
@@ -319,6 +327,7 @@ def get_task_instances(
     duration_gte: float | None = None,
     duration_lte: float | None = None,
     state: list[str] | None = None,
+    state_reasons: list[str] | None = None,
     pool: list[str] | None = None,
     queue: list[str] | None = None,
     offset: int | None = None,
@@ -327,6 +336,7 @@ def get_task_instances(
     """Get list of task instances."""
     # Because state can be 'none'
     states = _convert_state(state)
+
 
     base_query = session.query(TI).join(TI.dag_run)
 
@@ -424,6 +434,15 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
         ),
         isouter=True,
     ).add_entity(SlaMiss)
+    base_query = base_query.join(
+        TaskFail,
+        and_(
+            TaskFail.dag_id == TI.dag_id,
+            TaskFail.task_id == TI.task_id,
+            TaskFail.run_id == TI.run_id,
+        ),
+        isouter=True,
+    ).add_entity(SlaMiss)    
     ti_query = base_query.options(joinedload(TI.rendered_task_instance_fields))
     task_instances = ti_query.all()
 

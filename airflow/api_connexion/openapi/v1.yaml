@@ -4344,6 +4344,12 @@ components:
             $ref: '#/components/schemas/TaskState'
           description:
             The value can be repeated to retrieve multiple matching values (OR condition).
+        state_reason:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskStateReason'
+          description:
+            The value can be repeated to retrieve multiple matching values (OR condition).
         pool:
           type: array
           items:
@@ -4529,6 +4535,16 @@ components:
         - deferred
         - removed
         - restarting
+
+    TaskStateReason:
+      description: |
+        Task state reason.
+
+        *Added in version 2.7.0
+      type: string
+      enum:
+        - living_best_life
+        - its_bad_man
 
     DagState:
       description: |

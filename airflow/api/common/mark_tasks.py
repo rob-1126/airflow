@@ -35,6 +35,7 @@ from airflow.utils.helpers import exactly_one
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
+from airflow.exceptions import TaskInstanceMarkedFailedThroughUi
 
 
 class _DagRunInfo(NamedTuple):
@@ -159,6 +160,11 @@ def set_state(
             if task_instance.state in [State.DEFERRED, State.UP_FOR_RESCHEDULE]:
                 task_instance._try_number += 1
             task_instance.set_state(state, session=session)
+            if state == State.FAILED:
+                msg = "{} marked as failed".format(task_instance)
+                error = TaskInstanceMarkedFailedThroughUi(msg)
+                task_instance.handle_failure(error=error, session=session)
+
         session.flush()
     else:
         tis_altered = qry_dag.all()

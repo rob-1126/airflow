@@ -34,6 +34,7 @@ from airflow.exceptions import (
     NoAvailablePoolSlot,
     PoolNotFound,
     TaskConcurrencyLimitReached,
+    TaskInstanceAlreadyFinishedReportedByBackfillExecutor,
 )
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
@@ -273,7 +274,8 @@ class BackfillJob(BaseJob):
                     f"{ti.state}. Was the task killed externally? Info: {info}"
                 )
                 self.log.error(msg)
-                ti.handle_failure(error=msg)
+                error = TaskInstanceAlreadyFinishedReportedByBackfillExecutor(msg)
+                ti.handle_failure(error=error)
                 continue
 
             def _iter_task_needing_expansion() -> Iterator[AbstractOperator]:

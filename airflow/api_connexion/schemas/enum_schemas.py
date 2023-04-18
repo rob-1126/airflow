@@ -35,3 +35,10 @@ class TaskInstanceStateField(fields.String):
     def __init__(self, **metadata):
         super().__init__(**metadata)
         self.validators = [validate.OneOf(State.task_states)] + list(self.validators)
+
+class TaskInstanceStateReasonField(fields.String):
+    """Schema for TaskInstanceStateReason Enum."""
+
+    def __init__(self, **metadata):
+        super().__init__(**metadata)
+        self.validators = [validate.OneOf(State.task_state_reasons)] + list(self.validators)

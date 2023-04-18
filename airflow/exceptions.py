@@ -356,6 +356,15 @@ class PodReconciliationError(AirflowException):
     """Raised when an error is encountered while trying to merge pod configs."""
 
 
+class TaskInstanceAlreadyFinishedReportedByScheduler(AirflowException):
+    """ Issued when a task is already finished."""
+
+class TaskInstanceAlreadyFinishedReportedByBackfillExecutor(AirflowException):
+    """ Issued when a task is already finished."""
+
+class TaskInstanceMarkedFailedThroughUi(AirflowException):
+    """ Issued when a task is marked failed through UI."""
+
 class RemovedInAirflow3Warning(DeprecationWarning):
     """Issued for usage of deprecated features that will be removed in Airflow3."""
 
@@ -368,3 +377,4 @@ class AirflowProviderDeprecationWarning(DeprecationWarning):
 
     deprecated_provider_since: str | None = None
     "Indicates the provider version that started raising this deprecation warning"
+

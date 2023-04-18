@@ -1547,6 +1547,32 @@ class DAG(LoggingMixin):
             session=session,
         )
         return cast(Query, query).order_by(DagRun.execution_date).all()
+    
+    @provide_session
+    def get_task_instances_query(
+        self,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        state: list[TaskInstanceState] | None = None,
+        session: Session = NEW_SESSION,
+    ) -> list[TaskInstance]:
+        if not start_date:
+            start_date = (timezone.utcnow() - timedelta(30)).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+        query = self._get_task_instances(
+            task_ids=None,
+            start_date=start_date,
+            end_date=end_date,
+            run_id=None,
+            state=state or (),
+            include_subdags=False,
+            include_parentdag=False,
+            include_dependent_dags=False,
+            exclude_task_ids=(),
+            session=session,
+        )
+        return query
 
     @overload
     def _get_task_instances(

@@ -40,7 +40,10 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.exceptions import (
+    RemovedInAirflow3Warning,
+    TaskInstanceAlreadyFinishedReportedByScheduler,
+)
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.models.dag import DAG, DagModel
@@ -695,6 +698,7 @@ class SchedulerJob(BaseJob):
                     "task says its %s. (Info: %s) Was the task killed externally?"
                 )
                 self.log.error(msg, ti, state, ti.state, info)
+                error = TaskInstanceAlreadyFinishedReportedByScheduler(msg % (ti, state, ti.state, info))
 
                 # Get task from the Serialized DAG
                 try:
@@ -714,7 +718,7 @@ class SchedulerJob(BaseJob):
                     )
                     self.executor.send_callback(request)
                 else:
-                    ti.handle_failure(error=msg % (ti, state, ti.state, info), session=session)
+                    ti.handle_failure(error=error, session=session)
 
         return len(event_buffer)
 

@@ -33,8 +33,10 @@ from datetime import datetime, timedelta
 from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
-from typing import Any, Callable, Collection, Iterator, Mapping, MutableMapping, Sequence
+from typing import Any, Callable, Collection, Iterator, Mapping, MutableMapping, Sequence, cast
 from urllib.parse import unquote, urljoin, urlsplit
+from sqlalchemy.orm import Query
+
 
 import configupdater
 import flask.json
@@ -2993,11 +2995,28 @@ class Airflow(AirflowBaseView):
 
         form = GraphForm(data=dt_nr_dr_data)
         form.execution_date.choices = dt_nr_dr_data["dr_choices"]
-
+        query = dag.get_task_instances_query(dttm, dttm).add_columns(
+            TaskFail.reason,
+        ).join(
+            TaskFail,
+            and_(
+                TaskFail.dag_id == TaskInstance.dag_id,
+                TaskFail.run_id == TaskInstance.run_id,
+                TaskFail.task_id == TaskInstance.task_id,
+                TaskFail.map_index == TaskInstance.map_index,
+            ), 
+            isouter=True,
+        )
+        results = cast(Query, query).order_by(DagRun.execution_date).all()
         task_instances = {
-            ti.task_id: wwwutils.get_instance_with_map(ti, session)
-            for ti in dag.get_task_instances(dttm, dttm)
+            result[0].task_id: { **(wwwutils.get_instance_with_map(result[0], session)), "fail_reason": result[1] }
+            for result in results
         }
+        #logging.info(results)
+        #enriched_tis = [{**x[0], **{"reason":x[1]}} for x in task_i]
+        #logging.info("query: %s", enriched_tis)
+   
+
         tasks = {
             t.task_id: {
                 "dag_id": t.dag_id,

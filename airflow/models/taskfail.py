@@ -21,7 +21,7 @@ from __future__ import annotations
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, text
 from sqlalchemy.orm import relationship
 
-from airflow.models.base import Base, StringID
+from airflow.models.base import Base, StringID, String
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
@@ -38,6 +38,7 @@ class TaskFail(Base):
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
     duration = Column(Integer)
+    reason = Column(String(200), nullable=True);
 
     __table_args__ = (
         Index("idx_task_fail_task_instance", dag_id, task_id, run_id, map_index),
@@ -72,6 +73,7 @@ class TaskFail(Base):
         self.map_index = ti.map_index
         self.start_date = ti.start_date
         self.end_date = ti.end_date
+        self.reason = ti.reason
         if self.end_date and self.start_date:
             self.duration = int((self.end_date - self.start_date).total_seconds())
         else:
