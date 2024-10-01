@@ -104,6 +104,34 @@ spec:
               value: "1"
           {{- include "standard_airflow_environment" . | indent 10 }}
           resources: {{- toYaml .Values.migrateDatabaseJob.resources | nindent 12 }}
+          {{- if .Values.migrateDatabaseJob.livenessProbe.enabled }}
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.migrateDatabaseJob.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.migrateDatabaseJob.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.migrateDatabaseJob.livenessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.migrateDatabaseJob.livenessProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if .Values.migrateDatabaseJob.livenessProbe.command }}
+                  {{- toYaml .Values.migrateDatabaseJob.livenessProbe.command  | nindent 18 }}
+                {{- else }}
+                - echo "not yet implemented && exit 2"
+                {{- end }}
+          {{- end }}
+          {{- if .Values.migrateDatabaseJob.readinessProbe.enabled }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.migrateDatabaseJob.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.migrateDatabaseJob.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.migrateDatabaseJob.readinessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.migrateDatabaseJob.readinessProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if .Values.migrateDatabaseJob.readinessProbe.command }}
+                  {{- toYaml .Values.migrateDatabaseJob.readinessProbe.command  | nindent 18 }}
+                {{- else }}
+                - echo "not yet implemented && exit 2"
+                {{- end }}
+          {{- end }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
               {{- if .Values.volumeMounts }}

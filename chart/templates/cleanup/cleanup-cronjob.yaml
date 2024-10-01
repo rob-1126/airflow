@@ -91,6 +91,36 @@ spec:
               {{- if .Values.cleanup.command }}
               command: {{ tpl (toYaml .Values.cleanup.command) . | nindent 16 }}
               {{- end }}
+
+              {{- if .Values.cleanup.livenessProbe.enabled }}
+              livenessProbe:
+                initialDelaySeconds: {{ .Values.cleanup.livenessProbe.initialDelaySeconds }}
+                timeoutSeconds: {{ .Values.cleanup.livenessProbe.timeoutSeconds }}
+                failureThreshold: {{ .Values.cleanup.livenessProbe.failureThreshold }}
+                periodSeconds: {{ .Values.cleanup.livenessProbe.periodSeconds }}
+                exec:
+                  command:
+                    {{- if .Values.cleanup.livenessProbe.command }}
+                      {{- toYaml .Values.cleanup.livenessProbe.command  | nindent 18 }}
+                    {{- else }}
+                    - echo "not yet implemented && exit 2"
+                    {{- end }}
+              {{- end }}
+              {{- if .Values.cleanup.readinessProbe.enabled }}
+              readinessProbe:
+                initialDelaySeconds: {{ .Values.cleanup.readinessProbe.initialDelaySeconds }}
+                timeoutSeconds: {{ .Values.cleanup.readinessProbe.timeoutSeconds }}
+                failureThreshold: {{ .Values.cleanup.readinessProbe.failureThreshold }}
+                periodSeconds: {{ .Values.cleanup.readinessProbe.periodSeconds }}
+                exec:
+                  command:
+                    {{- if .Values.cleanup.readinessProbe.command }}
+                      {{- toYaml .Values.cleanup.readinessProbe.command  | nindent 18 }}
+                    {{- else }}
+                    - echo "not yet implemented && exit 2"
+                    {{- end }}
+              {{- end }}
+              
               {{- if .Values.cleanup.args }}
               args: {{ tpl (toYaml .Values.cleanup.args) . | nindent 16 }}
               {{- end }}

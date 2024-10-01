@@ -199,20 +199,20 @@ spec:
           ports:
             - name: airflow-ui
               containerPort: {{ .Values.ports.airflowUI }}
+          {{- if .Values.webserver.livenessProbe.enabled }}
           livenessProbe:
-            httpGet:
-              path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/health
-              port: {{ .Values.ports.airflowUI }}
-              {{- if .Values.config.webserver.base_url}}
-              httpHeaders:
-                - name: Host
-                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.webserver.base_url .)).host  "" }}
-              {{- end }}
-              scheme: {{ .Values.webserver.livenessProbe.scheme | default "http" }}
             initialDelaySeconds: {{ .Values.webserver.livenessProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.webserver.livenessProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.webserver.livenessProbe.failureThreshold }}
             periodSeconds: {{ .Values.webserver.livenessProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if .Values.webserver.livenessProbe.command }}
+                  {{- toYaml .Values.webserver.livenessProbe.command  | nindent 16 }}
+                {{- else }}
+                - echo "not yet implemented && exit 2"
+                {{- end }}
+          {{- end }}
           readinessProbe:
             httpGet:
               path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/health
@@ -227,6 +227,7 @@ spec:
             timeoutSeconds: {{ .Values.webserver.readinessProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.webserver.readinessProbe.failureThreshold }}
             periodSeconds: {{ .Values.webserver.readinessProbe.periodSeconds }}
+
           startupProbe:
             httpGet:
               path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/health

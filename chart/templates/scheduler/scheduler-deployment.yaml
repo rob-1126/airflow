@@ -195,6 +195,20 @@ spec:
                 {{- else }}
                   {{- include "scheduler_liveness_check_command" . | indent 14 }}
                 {{- end }}
+          {{- if .Values.scheduler.readinessProbe.enabled }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.scheduler.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.scheduler.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.scheduler.readinessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.scheduler.readinessProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if .Values.scheduler.readinessProbe.command }}
+                  {{- toYaml .Values.scheduler.readinessProbe.command  | nindent 16 }}
+                {{- else }}
+                - echo "not yet implemented && exit 2"
+                {{- end }}
+          {{- end }}
           startupProbe:
             timeoutSeconds: {{ .Values.scheduler.startupProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.scheduler.startupProbe.failureThreshold }}
@@ -244,6 +258,34 @@ spec:
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContextLogGroomerSidecar | nindent 12 }}
+          {{- if .Values.scheduler.logGroomerSidecar.livenessProbe.enabled }}
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.scheduler.logGroomerSidecar.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.scheduler.logGroomerSidecar.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.scheduler.logGroomerSidecar.livenessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.scheduler.logGroomerSidecar.livenessProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if .Values.scheduler.logGroomerSidecar.livenessProbe.command }}
+                  {{- toYaml .Values.scheduler.logGroomerSidecar.livenessProbe.command  | nindent 16 }}
+                {{- else }}
+                  {{- include "scheduler_log_groomer_liveness_check_command" . | indent 14 }}
+                {{- end }}
+          {{- end }}
+          {{- if .Values.scheduler.logGroomerSidecar.readinessProbe.enabled }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.scheduler.logGroomerSidecar.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.scheduler.logGroomerSidecar.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.scheduler.logGroomerSidecar.readinessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.scheduler.logGroomerSidecar.readinessProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if .Values.scheduler.logGroomerSidecar.readinessProbe.command }}
+                  {{- toYaml .Values.scheduler.logGroomerSidecar.readinessProbe.command  | nindent 16 }}
+                {{- else }}
+                  {{- include "scheduler_log_groomer_readiness_check_command" . | indent 14 }}
+                {{- end }}
+          {{- end }}
           {{- if .Values.scheduler.logGroomerSidecar.command }}
           command: {{ tpl (toYaml .Values.scheduler.logGroomerSidecar.command) . | nindent 12 }}
           {{- end }}

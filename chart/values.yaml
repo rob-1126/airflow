@@ -493,6 +493,13 @@ workers:
     failureThreshold: 5
     periodSeconds: 60
     command: ~
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 10
+    timeoutSeconds: 20
+    failureThreshold: 5
+    periodSeconds: 60
+    command: ~
 
   # Update Strategy when worker is deployed as a StatefulSet
   updateStrategy: ~
@@ -721,6 +728,13 @@ scheduler:
     failureThreshold: 5
     periodSeconds: 60
     command: ~
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 10
+    timeoutSeconds: 20
+    failureThreshold: 5
+    periodSeconds: 60
+    command: ~
 
   # Wait for at most 10 minutes (6*10s) for the scheduler container to startup.
   # livenessProbe kicks in after the startup
@@ -800,6 +814,7 @@ scheduler:
   # Add additional init containers into scheduler.
   extraInitContainers: []
 
+
   # Mount additional volumes into scheduler. It can be templated like in the following example:
   #   extraVolumes:
   #     - name: my-templated-extra-volume
@@ -859,6 +874,34 @@ scheduler:
     # Detailed default security context for logGroomerSidecar for container level
     securityContexts:
       container: {}
+      livenessProbe:
+        enabled: false
+        initialDelaySeconds: 10
+        timeoutSeconds: 20
+        failureThreshold: 5
+        periodSeconds: 60
+        command: ~
+      readinessProbe:
+        enabled: false
+        initialDelaySeconds: 10
+        timeoutSeconds: 20
+        failureThreshold: 5
+        periodSeconds: 60
+        command: ~
+    livenessProbe:
+      enabled: false
+      initialDelaySeconds: 10
+      timeoutSeconds: 20
+      failureThreshold: 5
+      periodSeconds: 60
+      command: ~
+    readinessProbe:
+      enabled: false
+      initialDelaySeconds: 10
+      timeoutSeconds: 20
+      failureThreshold: 5
+      periodSeconds: 60
+      command: ~
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -1021,9 +1064,20 @@ migrateDatabaseJob:
   #  requests:
   #   cpu: 100m
   #   memory: 128Mi
-
-  # Launch additional containers into database migration job
-  extraContainers: []
+  livenessProbe:
+    enabled: false
+    initialDelaySeconds: 10
+    timeoutSeconds: 20
+    failureThreshold: 5
+    periodSeconds: 60
+    command: ~
+  readinessProbe:
+    enabled: false
+    initialDelaySeconds: 10
+    timeoutSeconds: 20
+    failureThreshold: 5
+    periodSeconds: 60
+    command: ~
 
   # Mount additional volumes into database migration job. It can be templated like in the following example:
   #   extraVolumes:
@@ -1061,6 +1115,7 @@ webserver:
   #      - "foo.remote"
   allowPodLogReading: true
   livenessProbe:
+    enabled: false
     initialDelaySeconds: 15
     timeoutSeconds: 5
     failureThreshold: 5
@@ -1284,6 +1339,14 @@ triggerer:
     timeoutSeconds: 20
     failureThreshold: 5
     periodSeconds: 60
+    command:
+      - /bin/true
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 10
+    timeoutSeconds: 20
+    failureThreshold: 5
+    periodSeconds: 60
     command: ~
 
   # Create ServiceAccount
@@ -1403,6 +1466,20 @@ triggerer:
     # Detailed default security context for logGroomerSidecar for container level
     securityContexts:
       container: {}
+    livenessProbe:
+      enabled: false
+      initialDelaySeconds: 10
+      timeoutSeconds: 20
+      failureThreshold: 5
+      periodSeconds: 60
+      command: ~
+    readinessProbe:
+      enabled: false
+      initialDelaySeconds: 10
+      timeoutSeconds: 20
+      failureThreshold: 5
+      periodSeconds: 60
+      command: ~
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -1923,6 +2000,20 @@ redis:
 
     # Annotations to add to worker kubernetes service account.
     annotations: {}
+  livenessProbe:
+    enabled: false
+    initialDelaySeconds: 10
+    timeoutSeconds: 20
+    failureThreshold: 5
+    periodSeconds: 60
+    command: ~
+  readinessProbe:
+    enabled: false
+    initialDelaySeconds: 10
+    timeoutSeconds: 20
+    failureThreshold: 5
+    periodSeconds: 60
+    command: ~
 
   persistence:
     # Enable persistent volumes
@@ -2079,6 +2170,20 @@ cleanup:
   # Detailed default security context for cleanup for container level
   securityContexts:
     container: {}
+  livenessProbe:
+    enabled: false
+    initialDelaySeconds: 10
+    timeoutSeconds: 20
+    failureThreshold: 5
+    periodSeconds: 60
+    command: ~
+  readinessProbe:
+    enabled: false
+    initialDelaySeconds: 10
+    timeoutSeconds: 20
+    failureThreshold: 5
+    periodSeconds: 60
+    command: ~
 
   # Specify history limit
   # When set, overwrite the default k8s number of successful and failed CronJob executions that are saved.

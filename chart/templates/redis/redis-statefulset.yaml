@@ -83,6 +83,37 @@ spec:
           securityContext: {{ $containerSecurityContext | nindent 12 }}
           command: ["/bin/sh"]
           resources: {{- toYaml .Values.redis.resources | nindent 12 }}
+{{- if .Values.redis.livenessProbe.enabled }}
+          livenessProbe:
+            # follows mae format as others in airflow
+            initialDelaySeconds: {{ .Values.redis.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.redis.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.redis.livenessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.redis.livenessProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if .Values.redis.livenessProbe.command }}
+                  {{- toYaml .Values.redis.livenessProbe.command | nindent 16 }}
+                {{- else }}
+                  - redis-cli
+                  - ping
+                {{- end }}
+          {{- end }}
+          {{- if .Values.redis.readinessProbe.enabled }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.redis.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.redis.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.redis.readinessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.redis.readinessProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if .Values.redis.readinessProbe.command }}
+                  {{- toYaml .Values.redis.readinessProbe.command | nindent 16 }}
+                {{- else }}
+                  - redis-cli
+                  - ping
+                {{- end }}
+          {{- end }}
           args: ["-c", "redis-server --requirepass ${REDIS_PASSWORD}"]
           ports:
             - name: redis-db
@@ -96,6 +127,7 @@ spec:
                 secretKeyRef:
                   name: {{ template "redis_password_secret" . }}
                   key: password
+              
   {{- if not .Values.redis.persistence.enabled }}
       volumes:
         - name: redis-db

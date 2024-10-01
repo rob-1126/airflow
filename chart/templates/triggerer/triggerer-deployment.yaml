@@ -199,6 +199,22 @@ spec:
                 {{- else }}
                   {{- include "triggerer_liveness_check_command" . | indent 14 }}
                 {{- end }}
+          {{ if .Values.triggerer.readinessProbe.enabled }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.triggerer.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.triggerer.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.triggerer.readinessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.triggerer.readinessProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if .Values.triggerer.readinessProbe.command }}
+                  {{- toYaml .Values.triggerer.readinessProbe.command | nindent 16 }}
+                {{- else }}
+                  - sh
+                  - -c
+                  - echo "not implemented"; exit 1
+                {{- end }}
+          {{ end }}
         {{- /* Airflow version 2.6.0 is when triggerer logs serve introduced */ -}}
           {{- if semverCompare ">=2.6.0" .Values.airflowVersion }}
           ports:
@@ -221,6 +237,40 @@ spec:
           args: {{- tpl (toYaml .Values.triggerer.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
           {{- if .Values.triggerer.logGroomerSidecar.retentionDays }}
+          {{ if .Values.triggerer.logGroomerSidecar.livenessProbe.enabled }}
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.triggerer.logGroomerSidecar.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.triggerer.logGroomerSidecar.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.triggerer.logGroomerSidecar.livenessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.triggerer.logGroomerSidecar.livenessProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if .Values.triggerer.logGroomerSidecar.livenessProbe.command }}
+                  {{- toYaml .Values.triggerer.logGroomerSidecar.livenessProbe.command | nindent 16 }}
+                {{- else }}
+                  - sh
+                  - -c
+                  - echo "not implemented"; exit 1
+                {{- end }}
+          {{ end }}
+          {{ if .Values.triggerer.logGroomerSidecar.readinessProbe.enabled }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.triggerer.logGroomerSidecar.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.triggerer.logGroomerSidecar.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.triggerer.logGroomerSidecar.readinessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.triggerer.logGroomerSidecar.readinessProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if .Values.triggerer.logGroomerSidecar.readinessProbe.command }}
+                  {{- toYaml .Values.triggerer.logGroomerSidecar.readinessProbe.command | nindent 16 }}
+                {{- else }}
+                  - sh
+                  - -c
+                  - echo "not implemented"; exit 1
+                {{- end }}
+          {{ end }}
+
+
           env:
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.triggerer.logGroomerSidecar.retentionDays }}"
