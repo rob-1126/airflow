@@ -2117,6 +2117,8 @@ pgbouncer:
       periodSeconds: 10
       timeoutSeconds: 1
 
+  # Labels specific to pgbouncer objects and pods
+  labels: {}
   # Environment variables to add to pgbouncer container
   env: []
 
